@@ -138,7 +138,7 @@ capture myboard_spec.py update 2 J5 J6 U5.16   # re-place J5/J6, re-wire pin U5.
 # 6. after layout: package a JLC order (Altium open, board routed and saved)
 jlc-fab-export --init MyBoard\MyBoard.PrjPcb                  # once: writes MyBoard\jlc-fab.json
 jlc-fab-export --config MyBoard\jlc-fab.json --make-outline   # first export: board outline -> Mechanical 1
-jlc-fab-export --config MyBoard\jlc-fab.json                 # exit 0 = ready, 2 = blockers listed
+jlc-fab-export --config MyBoard\jlc-fab.json                  # exit 0 = ready, 2 = blockers listed
 ```
 
 `update` keeps every other part's unique ID, so the next *Update PCB* in
