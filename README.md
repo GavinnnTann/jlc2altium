@@ -11,6 +11,25 @@ on top of [altium-mcp](https://github.com/coffeenmusic/altium-mcp) and
 from a plain terminal, and the part search and library import are useful
 without an agent at all.
 
+![LED demo sheet captured by jlc2altium and rendered by Altium](docs/led-demo.png)
+
+*The [LED demo](capture/examples/led_demo_spec.py): four JLC parts imported
+from their LCSC codes with 3D models, then placed and wired from a short
+Python spec. The audit compares Altium's compiled netlist with the spec:*
+
+```
+$ capture led_demo_spec.py audit
+MATCH: Altium's compiled netlist equals the spec
+
+Netlist for review:
+  +5V         ( 4) C1.2 J1.1 R1.1 TP1.1(TP)
+  GND         ( 3) C1.1 D1.2(K) J1.2
+  NetD1_1     ( 2) D1.1(A) R1.2
+
+$ capture led_demo_spec.py erc
+{'total': 0, 'fatal': 0, 'errors': 0, 'warnings': 0}
+```
+
 > jlc2altium is an independent project. It is not affiliated with or endorsed
 > by Altium, JLCPCB, LCSC or EasyEDA.
 
