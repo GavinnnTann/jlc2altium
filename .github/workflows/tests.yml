@@ -7,20 +7,22 @@ on:
 jobs:
   offline:
     # Everything that runs without Altium, altium-mcp or the network:
-    # footprint geometry, EasyEDA record parsing, catalogue search, and the
-    # capture wiring / netlist logic.
+    # footprint geometry, EasyEDA record parsing, catalogue search, the
+    # capture wiring / netlist logic, and the JLC export's BOM/CPL rules and
+    # Gerber/drill checks.
     runs-on: windows-latest
     env:
       PYTHONIOENCODING: utf-8
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: python -m pip install -e jlcpick
+      - run: python -m pip install -e jlcpick openpyxl
       - run: python jlcpick/tests/test_geometry.py
       - run: python jlcpick/tests/test_easyeda_parsing.py
       - run: python jlcpick/tests/test_catalog.py
       - run: python capture/tests/test_sheetgen.py
+      - run: python fab/tests/test_jlc_fab_export.py
       - name: Byte-compile every script
-        run: python -m compileall -q capture tools jlcpick
+        run: python -m compileall -q capture tools jlcpick fab

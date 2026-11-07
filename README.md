@@ -43,11 +43,12 @@ $ capture led_demo_spec.py erc
 | Capture | `capture` | A short Python spec (parts + connections) becomes placed, wired, ERC-clean Altium sheets. Wiring is drawn from pin positions measured in the saved file, not predicted. |
 | Prove it | `capture audit`, `capture erc` | Altium's compiled netlist is compared with the spec. Every net is printed for a pin-by-pin review. |
 | Show it | `capture render` | PNG of each sheet, drawn by Altium itself. |
+| Order | `jlc-fab-export` | One folder for a JLC PCB + assembly order: Gerber and drill zip, BOM (with LCSC numbers) and CPL as Excel, and a README that lists what blocks the order (unrouted nets, missing layers, drill/copper misalignment), parts too close to the board edge, and unconfirmed rotations. |
 
-Two Claude Code skills (`jlcpick`, `altium-capture`) teach an agent the
-workflow and its pitfalls. A runbook (`templates/CLAUDE.md`) sets the ground
-rules for a hardware project: the designer picks the parts, no unverified
-specs, every footprint verified.
+Three Claude Code skills (`jlcpick`, `altium-capture`, `jlc-fab-export`)
+teach an agent the workflow and its pitfalls. A runbook
+(`templates/CLAUDE.md`) sets the ground rules for a hardware project: the
+designer picks the parts, no unverified specs, every footprint verified.
 
 ## Requirements
 
@@ -70,16 +71,17 @@ The installer:
 
 1. Clones altium-mcp and LCSC2Altium into `~\src`, at the commits
    jlc2altium was tested with (see [Tested versions](#tested-versions)).
-2. Creates `~\.venvs\jlc2altium` (Python 3.12, altium-monkey, jlcpick) and
-   altium-mcp's own environment.
+2. Creates `~\.venvs\jlc2altium` (Python 3.12, altium-monkey, jlcpick,
+   openpyxl) and altium-mcp's own environment.
 3. Registers the `altium` MCP server with Claude Code at user scope, so it is
    available in every project.
-4. Links the `jlcpick` and `altium-capture` skills into `~\.claude\skills`,
-   and clones coffeenmusic's
+4. Links the `jlcpick`, `altium-capture` and `jlc-fab-export` skills into
+   `~\.claude\skills`, and clones coffeenmusic's
    [altium-scripts-skill](https://github.com/coffeenmusic/altium-scripts-skill)
    (DelphiScript API reference) next to them.
 5. Puts `jlcpick`, `jlc-query`, `lcsc2altium-cli`, `fetch-jlcparts`,
-   `make-misc-lib`, `altium-call` and `capture` on your PATH (`~\.local\bin`).
+   `make-misc-lib`, `altium-call`, `capture` and `jlc-fab-export` on your PATH
+   (`~\.local\bin`).
 6. Sets `JLC2ALTIUM_HOME`, `JLCPICK_DB`, `JLCPICK_LCSC2ALTIUM`,
    `ALTIUM_MCP_SERVER` and `LCSC2ALTIUM_SRC`.
 7. With `-FetchDb`, downloads the jlcparts catalogue (about 300 MB, 2.3 GB on
@@ -101,9 +103,11 @@ Altium, then ask, for example:
 
 > Capture the attached schematic into my Altium project with JLC parts, then audit the netlist and show me the sheets.
 
+> Package the board for a JLC assembly order and tell me what still blocks it.
+
 The skills walk the agent through shortlisting, importing, capturing,
-auditing and rendering. The agent is told to stop and ask before choosing
-parts.
+auditing, rendering and packaging the order. The agent is told to stop and
+ask before choosing parts, and never to place an order itself.
 
 ## Use it by hand
 
@@ -130,6 +134,11 @@ capture myboard_spec.py render out
 
 # 5. later changes once a PCB exists: touch only what changed
 capture myboard_spec.py update 2 J5 J6 U5.16   # re-place J5/J6, re-wire pin U5.16
+
+# 6. after layout: package a JLC order (Altium open, board routed and saved)
+jlc-fab-export --init MyBoard\MyBoard.PrjPcb                  # once: writes MyBoard\jlc-fab.json
+jlc-fab-export --config MyBoard\jlc-fab.json --make-outline   # first export: board outline -> Mechanical 1
+jlc-fab-export --config MyBoard\jlc-fab.json                  # exit 0 = ready, 2 = blockers listed
 ```
 
 `update` keeps every other part's unique ID, so the next *Update PCB* in
@@ -150,6 +159,23 @@ grounds (`("U1.4", "VIN")`). There are also direct wires between aligned
 pins, tees with a junction for shunt parts, and `None` for a no-connect.
 [capture/examples/led_demo_spec.py](capture/examples/led_demo_spec.py) is a
 complete example with the steps to run it.
+
+`jlc-fab-export` writes `Project Outputs for <project>\JLC\`: the
+`_Gerber.zip` for the PCB order, then `_BOM_JLC.xlsx` and `_CPL_JLC.xlsx` for
+assembly. Read its `JLC_ORDER_README.md` first. It starts with NOT READY TO
+ORDER when something blocks the order:
+- unrouted nets
+- an ECO that was not run
+- a part without an LCSC code
+- missing layers
+- an outline that does not match the board
+- drill files that do not line up with the copper
+
+It also lists parts closer than 2.5 mm to the board edge (JLC's assembly
+rule), and applies the rotation corrections logged in your project's
+`docs/cpl-rotations.md`. The CPL uses the middle of each part's pads, not the
+footprint origin, because converted footprints often have off-centre origins.
+Reference: [docs/jlc-fab-export.md](docs/jlc-fab-export.md).
 
 ## Tested versions
 
@@ -176,6 +202,7 @@ python jlcpick\tests\test_geometry.py        # land-pattern maths, footprint sel
 python jlcpick\tests\test_easyeda_parsing.py # EasyEDA record format
 python jlcpick\tests\test_catalog.py         # search filters on a synthetic catalogue
 python capture\tests\test_sheetgen.py        # wiring ops and the netlist the audit compares
+python fab\tests\test_jlc_fab_export.py      # BOM/CPL rules, Gerber/drill parsing, fab checks
 ```
 
 Capture itself (placing, wiring, ERC, audit) needs a running Altium. Check
@@ -198,8 +225,14 @@ capture/
   make_misc_lib.py       test pad + net tie library with 3D bodies
   examples/              example spec
   tests/                 offline tests for the wiring logic
-skills/                  Claude Code skills: jlcpick, altium-capture
-templates/CLAUDE.md      hardware project runbook for the agent
+fab/
+  jlc_fab_export.py      JLC order package: Gerber + drill zip, BOM and CPL (.xlsx), checks
+  tests/                 offline tests: BOM/CPL rules, Gerber/Excellon parsing, fab checks
+skills/                  Claude Code skills: jlcpick, altium-capture, jlc-fab-export
+templates/
+  CLAUDE.md              hardware project runbook for the agent
+  cpl-rotations.md       JLC rotation-correction log, copied into a project's docs/
+docs/                    jlc-fab-export reference, README image
 ```
 
 ## Things to know
@@ -222,6 +255,16 @@ templates/CLAUDE.md      hardware project runbook for the agent
   overwrites your clipboard.
 - **Content Vault parts** (Altium's Manufacturer Part Search) carry no LCSC
   number. Use LCSC imports when the board is assembled at JLC.
+- **`jlc-fab-export` writes to your project.** It adds `JLC Fabrication.OutJob`
+  to the project (rewritten on every run), and `--make-outline` draws the board
+  outline on Mechanical 1 and saves the PCB.
+- **Rotations are unconfirmed until JLC's preview shows them.** The export
+  lists every footprint not yet in `docs/cpl-rotations.md`. Check polarised
+  parts in JLC's placement preview, then log what JLC corrected (and `0` for
+  footprints that came out right), so the next export gets them right.
+- **Edge clearance is measured to the outline's bounding box**, which is
+  exact for rectangular boards. On round or irregular boards, check parts
+  near curved edges yourself.
 
 ## Credits
 
