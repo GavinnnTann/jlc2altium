@@ -138,7 +138,7 @@ capture myboard_spec.py update 2 J5 J6 U5.16   # re-place J5/J6, re-wire pin U5.
 # 6. after layout: package a JLC order (Altium open, board routed and saved)
 jlc-fab-export --init MyBoard\MyBoard.PrjPcb                  # once: writes MyBoard\jlc-fab.json
 jlc-fab-export --config MyBoard\jlc-fab.json --make-outline   # first export: board outline -> Mechanical 1
-jlc-fab-export --config MyBoard\jlc-fab.json
+jlc-fab-export --config MyBoard\jlc-fab.json                 # exit 0 = ready, 2 = blockers listed
 ```
 
 `update` keeps every other part's unique ID, so the next *Update PCB* in
@@ -162,11 +162,20 @@ complete example with the steps to run it.
 
 `jlc-fab-export` writes `Project Outputs for <project>\JLC\`: the
 `_Gerber.zip` for the PCB order, then `_BOM_JLC.xlsx` and `_CPL_JLC.xlsx` for
-assembly. Read its `JLC_ORDER_README.md` first: it starts with NOT READY TO
-ORDER when something blocks the order, lists parts closer than 2.5 mm to the
-board edge (JLC's assembly rule), and applies the rotation corrections logged
-in your project's `docs/cpl-rotations.md`. Reference:
-[docs/jlc-fab-export.md](docs/jlc-fab-export.md).
+assembly. Read its `JLC_ORDER_README.md` first. It starts with NOT READY TO
+ORDER when something blocks the order:
+- unrouted nets
+- an ECO that was not run
+- a part without an LCSC code
+- missing layers
+- an outline that does not match the board
+- drill files that do not line up with the copper
+
+It also lists parts closer than 2.5 mm to the board edge (JLC's assembly
+rule), and applies the rotation corrections logged in your project's
+`docs/cpl-rotations.md`. The CPL uses the middle of each part's pads, not the
+footprint origin, because converted footprints often have off-centre origins.
+Reference: [docs/jlc-fab-export.md](docs/jlc-fab-export.md).
 
 ## Tested versions
 
@@ -193,7 +202,7 @@ python jlcpick\tests\test_geometry.py        # land-pattern maths, footprint sel
 python jlcpick\tests\test_easyeda_parsing.py # EasyEDA record format
 python jlcpick\tests\test_catalog.py         # search filters on a synthetic catalogue
 python capture\tests\test_sheetgen.py        # wiring ops and the netlist the audit compares
-python fab\tests\test_jlc_fab_export.py       # BOM/CPL rules, Gerber/drill parsing, fab checks
+python fab\tests\test_jlc_fab_export.py      # BOM/CPL rules, Gerber/drill parsing, fab checks
 ```
 
 Capture itself (placing, wiring, ERC, audit) needs a running Altium. Check
@@ -249,6 +258,13 @@ docs/                    jlc-fab-export reference, README image
 - **`jlc-fab-export` writes to your project.** It adds `JLC Fabrication.OutJob`
   to the project (rewritten on every run), and `--make-outline` draws the board
   outline on Mechanical 1 and saves the PCB.
+- **Rotations are unconfirmed until JLC's preview shows them.** The export
+  lists every footprint not yet in `docs/cpl-rotations.md`. Check polarised
+  parts in JLC's placement preview, then log what JLC corrected (and `0` for
+  footprints that came out right), so the next export gets them right.
+- **Edge clearance is measured to the outline's bounding box**, which is
+  exact for rectangular boards. On round or irregular boards, check parts
+  near curved edges yourself.
 
 ## Credits
 
