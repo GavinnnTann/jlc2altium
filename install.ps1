@@ -87,7 +87,7 @@ if (-not (Test-Path $VPy)) {
     uv venv --python 3.12 $Venv
     if ($LASTEXITCODE -ne 0) { throw 'uv venv failed' }
 }
-uv pip install --python $VPy 'altium-monkey==2026.9.22' 'requests>=2.31' 'olefile>=0.47' -e (Join-Path $Repo 'jlcpick')
+uv pip install --python $VPy 'altium-monkey==2026.9.22' 'requests>=2.31' 'olefile>=0.47' 'openpyxl>=3.1' -e (Join-Path $Repo 'jlcpick')
 if ($LASTEXITCODE -ne 0) { throw 'installing the tools environment failed' }
 
 # ------------------------------------------------------------------ altium-mcp venv
@@ -134,7 +134,7 @@ else {
 Step 'Skills in ~\.claude\skills'
 $skills = Join-Path $HOME '.claude\skills'
 New-Item -ItemType Directory -Force -Path $skills | Out-Null
-foreach ($s in @('jlcpick', 'altium-capture')) {
+foreach ($s in @('jlcpick', 'altium-capture', 'jlc-fab-export')) {
     $link = Join-Path $skills $s
     if (Test-Path $link) { Write-Host "  $s already present (left as is)" }
     else {
@@ -156,6 +156,7 @@ $shims = [ordered]@{
     'make-misc-lib.cmd'   = "`"$VPy`" `"$Repo\capture\make_misc_lib.py`" %*"
     'altium-call.cmd'     = "`"$McpPython`" `"$Repo\tools\altium_call.py`" %*"
     'capture.cmd'         = "`"$McpPython`" `"$Repo\capture\capture.py`" %*"
+    'jlc-fab-export.cmd'  = "`"$VPy`" `"$Repo\fab\jlc_fab_export.py`" %*"
 }
 foreach ($k in $shims.Keys) {
     Set-Content -Path (Join-Path $bin $k) -Value ("@echo off`r`n" + $shims[$k]) -Encoding ASCII
@@ -197,7 +198,8 @@ else {
 # ------------------------------------------------------------------ self-test
 Step 'Self-test'
 foreach ($t in @('jlcpick\tests\test_geometry.py', 'jlcpick\tests\test_easyeda_parsing.py',
-                  'jlcpick\tests\test_catalog.py', 'capture\tests\test_sheetgen.py')) {
+                  'jlcpick\tests\test_catalog.py', 'capture\tests\test_sheetgen.py',
+                  'fab\tests\test_jlc_fab_export.py')) {
     $last = & $VPy -X utf8 (Join-Path $Repo $t) | Select-Object -Last 1
     Write-Host "  $(Split-Path $t -Leaf): $last"
 }

@@ -65,10 +65,11 @@ Windows, Altium Designer installed. From the jlc2altium repo:
 
 It clones altium-mcp and LCSC2Altium, builds the Python environments,
 registers the `altium` MCP server for Claude Code (user scope), installs the
-skills (`jlcpick`, `altium-capture`, `altium-script`), puts `jlcpick`,
-`jlc-query`, `lcsc2altium-cli`, `altium-call`, `capture` on PATH and sets
-`JLCPICK_DB`, `JLCPICK_LCSC2ALTIUM`, `JLC2ALTIUM_HOME`. Restart Claude Code
-afterwards so the MCP server and skills load.
+skills (`jlcpick`, `altium-capture`, `jlc-fab-export`, `altium-script`), puts
+`jlcpick`, `jlc-query`, `lcsc2altium-cli`, `altium-call`, `capture`,
+`jlc-fab-export` on PATH and sets `JLCPICK_DB`, `JLCPICK_LCSC2ALTIUM`,
+`JLC2ALTIUM_HOME`. Restart Claude Code afterwards so the MCP server and skills
+load.
 
 Refresh the parts catalogue monthly: `fetch-jlcparts`.
 
@@ -83,6 +84,7 @@ Refresh the parts catalogue monthly: `fetch-jlcparts`.
 | `jlcpick geom/verify` | footprint geometry, self-checks, datasheet diff | no |
 | `lcsc2altium-cli` | LCSC codes → `.SchLib`/`.PcbLib` with 3D, merged | no |
 | `capture` | place, wire, check, audit, ERC, render sheets from a spec | yes |
+| `jlc-fab-export` | JLC order package: Gerber + drill zip, BOM and CPL (.xlsx), blockers | yes |
 | altium-mcp symbol/footprint creators | parts EasyEDA lacks | yes |
 | altium-mcp `check_schematic` | drafting problems in saved sheets | no |
 | altium-mcp `get_erc_violations`, `get_project_components` | compile, ERC, BOM view | yes |
@@ -164,10 +166,20 @@ simple runs, `run_drc`. Placement and routing decisions stay with the designer.
 
 ### Stage 9 — Generate and order
 
-`run_output_jobs`. JLC BOM columns: `Comment`, `Designator`, `Footprint`,
-`LCSC` (map from the `LCSC Part Number` parameter). CPL: `Designator`, `Mid X`,
-`Mid Y`, `Layer`, `Rotation`. Log every rotation JLC corrects in
-`docs/cpl-rotations.md` and bake it into the export.
+```
+jlc-fab-export --init <project>.PrjPcb                          # once: jlc-fab.json + docs/cpl-rotations.md
+jlc-fab-export --config <folder>/jlc-fab.json --make-outline   # first export: outline -> Mechanical 1
+jlc-fab-export --config <folder>/jlc-fab.json
+```
+
+It writes the Gerber + drill zip, the BOM (`Comment`, `Designator`,
+`Footprint`, `LCSC`, from the `LCSC Part Number` parameter) and the CPL
+(`Designator`, `Mid X`, `Mid Y`, `Layer`, `Rotation`) as .xlsx, plus
+`JLC_ORDER_README.md`. Do not order while the README lists blockers. Edge
+rails, PCBA type, and parts closer than 2.5 mm to the board edge are the
+designer's decisions. After each order, log every rotation JLC corrects (and
+every footprint its preview showed right, with 0) in `docs/cpl-rotations.md`;
+the next export applies them. Re-check stock live before paying.
 
 ---
 
