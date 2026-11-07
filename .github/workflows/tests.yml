@@ -1,0 +1,26 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  offline:
+    # Everything that runs without Altium, altium-mcp or the network:
+    # footprint geometry, EasyEDA record parsing, catalogue search, and the
+    # capture wiring / netlist logic.
+    runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e jlcpick
+      - run: python jlcpick/tests/test_geometry.py
+      - run: python jlcpick/tests/test_easyeda_parsing.py
+      - run: python jlcpick/tests/test_catalog.py
+      - run: python capture/tests/test_sheetgen.py
+      - name: Byte-compile every script
+        run: python -m compileall -q capture tools jlcpick

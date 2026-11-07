@@ -1,0 +1,19 @@
+[project]
+name = "jlcpick"
+version = "0.1.0"
+description = "Shortlist JLCPCB/LCSC parts by stock AND by whether symbol/footprint/3D already exist, then pull them into an EDA library."
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+]
+
+[project.scripts]
+jlcpick = "jlcpick.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["jlcpick*"]
